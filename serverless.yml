@@ -421,7 +421,7 @@ resources:
                 - "systemctl restart kubelet"
                 - "\n"
                 - "/opt/aws/bin/cfn-signal -e $? "
-                - "         --stack ${self:service}-${self:provider.region} "
+                - "         --stack ${self:service}-${self:provider.stage} "
                 - "         --resource NodeGroup "
                 - "         --region ${self:provider.region}"
     SpotNodeGroup:
