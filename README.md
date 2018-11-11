@@ -6,5 +6,9 @@ This is [Serverless framework](https://serverless.com/) code demo for article [S
 
 Please, read the article for more information.
 
+Article [Serverless Framework - Run your Kubernetes Workloads on Amazon EC2 Spot Instances with Amazon EKS - Part 2](https://dev-ops-notes.com/aws/serverless-framework-run-your-kubernetes-workloads-on-amazon-ec2-spot-instances-with-amazon-eks-part-2/)
+
+https://github.com/andreivmaksimov/aws-eks-spot-instances-serverless-framework-demo/tree/part2
+
 &copy; [Andrei Maksimov](https://www.linkedin.com/in/avmaksimov/) / [Dev-Ops-Notes.com](https://dev-ops-notes.com)
 --
