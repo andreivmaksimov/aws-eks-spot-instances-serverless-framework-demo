@@ -1,5 +1,8 @@
 service: aws-eks-spot-serverless-demo
 
+package:
+   individually: true
+
 provider:
   name: aws
   runtime: python3.6
@@ -9,13 +12,25 @@ provider:
 
 functions:
   VideoUploadLambdaFunction:
-    handler: upload_video.handler
+    handler: upload_video/upload_video.handler
+    package:
+      include:
+        - upload_video/**
+        - .kube/**
+        - bin/**
+      exclude:
+        - ./**
     events:
       - s3:
           bucket: "${self:service}-${self:provider.stage}-uploads"
           event: s3:ObjectCreated:*
   VideoThumbnailLambdaFunction:
-    handler: upload_thumbnail.handler
+    handler: upload_thumbnail/upload_thumbnail.handler
+    package:
+      include:
+        - upload_thumbnail/**
+      exclude:
+        - ./**
     events:
       - s3:
           bucket: "${self:service}-${self:provider.stage}-thumbnails"
@@ -350,8 +365,7 @@ resources:
       Properties:
         AssociatePublicIpAddress: true
         # https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html
-        ImageId: ami-0440e4f6b9713faf6
-        #ImageId: ami-dea4d5a1
+        ImageId: ami-0a0b913ef3249b655
         InstanceType: m3.medium
         IamInstanceProfile:
           Ref: NodeInstanceProfile
@@ -366,59 +380,13 @@ resources:
               - ""
               -
                 - "#!/bin/bash -xe\n"
-                - "CA_CERTIFICATE_DIRECTORY=/etc/kubernetes/pki"
-                - "\n"
-                - "CA_CERTIFICATE_FILE_PATH=$CA_CERTIFICATE_DIRECTORY/ca.crt"
-                - "\n"
-                - "MODEL_DIRECTORY_PATH=~/.aws/eks"
-                - "\n"
-                - "MODEL_FILE_PATH=$MODEL_DIRECTORY_PATH/eks-2017-11-01.normal.json"
-                - "\n"
-                - "mkdir -p $CA_CERTIFICATE_DIRECTORY"
-                - "\n"
-                - "mkdir -p $MODEL_DIRECTORY_PATH"
+                - "set -o xtrace"
                 - "\n"
                 - Fn::Join:
-                  - ""
+                  - " "
                   -
-                    - "aws eks describe-cluster --region=${self:provider.region} --name="
+                    - "/etc/eks/bootstrap.sh"
                     - Ref: KubernetesCluster
-                    - " --query 'cluster.{certificateAuthorityData: certificateAuthority.data, endpoint: endpoint}' > /tmp/describe_cluster_result.json"
-                - "\n"
-                - "cat /tmp/describe_cluster_result.json | grep certificateAuthorityData | awk '{print $2}' | sed 's/[,\"]//g' | base64 -d >  $CA_CERTIFICATE_FILE_PATH"
-                - "\n"
-                - "MASTER_ENDPOINT=$(cat /tmp/describe_cluster_result.json | grep endpoint | awk '{print $2}' | sed 's/[,\"]//g')"
-                - "\n"
-                - "INTERNAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)"
-                - "\n"
-                - "sed -i s,MASTER_ENDPOINT,$MASTER_ENDPOINT,g /var/lib/kubelet/kubeconfig"
-                - "\n"
-                - Fn::Join:
-                  - ""
-                  -
-                    - "sed -i s,CLUSTER_NAME,"
-                    - Ref: KubernetesCluster
-                    - ",g /var/lib/kubelet/kubeconfig"
-                - "\n"
-                - "sed -i s,REGION,${AWS::Region},g /etc/systemd/system/kubelet.service"
-                - "\n"
-                - "sed -i s,MAX_PODS,'12 --node-labels lifecycle=Ec2Spot',g /etc/systemd/system/kubelet.service"
-                - "\n"
-                - "sed -i s,INTERNAL_IP,$INTERNAL_IP,g /etc/systemd/system/kubelet.service"
-                - "\n"
-                - "DNS_CLUSTER_IP=10.100.0.10"
-                - "\n"
-                - "if [[ $INTERNAL_IP == 10.* ]] ; then DNS_CLUSTER_IP=172.20.0.10; fi"
-                - "\n"
-                - "sed -i s,DNS_CLUSTER_IP,$DNS_CLUSTER_IP,g  /etc/systemd/system/kubelet.service"
-                - "\n"
-                - "sed -i s,CERTIFICATE_AUTHORITY_FILE,$CA_CERTIFICATE_FILE_PATH,g /var/lib/kubelet/kubeconfig"
-                - "\n"
-                - "sed -i s,CLIENT_CA_FILE,$CA_CERTIFICATE_FILE_PATH,g  /etc/systemd/system/kubelet.service"
-                - "\n"
-                - "systemctl daemon-reload"
-                - "\n"
-                - "systemctl restart kubelet"
                 - "\n"
                 - "/opt/aws/bin/cfn-signal -e $? "
                 - "         --stack ${self:service}-${self:provider.stage} "
@@ -473,7 +441,9 @@ resources:
       Description: "EKS Cluster Nodes Role Arn"
       Value:
         Fn::GetAtt: [ NodeInstanceRole, Arn ]
-
-
+    LambdaFunctionsRoleArn:
+      Description: "Lambda Functions Role Arn"
+      Value:
+        Fn::GetAtt: [ IamRoleLambdaExecution, Arn ]
 
 
